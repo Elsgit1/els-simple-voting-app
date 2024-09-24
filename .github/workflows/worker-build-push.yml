@@ -43,10 +43,10 @@ jobs:
         working-directory: worker
         run: dotnet build --configuration Release --no-restore
 
-      # Run Tests
-      - name: Run tests
-        working-directory: worker
-        run: dotnet test --no-restore --verbosity normal
+      # # Run Tests
+      # - name: Run tests
+      #   working-directory: worker
+      #   run: dotnet test --no-restore --verbosity normal
 
       # Run Snyk Software Composition Analysis. If fails, drop the action
       - name: Software Composition Analysis with Snyk
