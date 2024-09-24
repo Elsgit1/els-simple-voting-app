@@ -213,12 +213,12 @@ jobs:
           IMAGE_TAG: ${{ steps.next_version.outputs.tag }}
           GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
         run: |
-          sed -i 's|image: .*|image: '"$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"'|g' k8s_manifests/worker-deployment.yml
+          sed -i 's|image: .*|image: '"$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"'|g' k8s_manifests/worker-deployment.yaml
           echo "Updated deployment image with ${{ steps.next_version.outputs.tag }}"
 
       - name: Commit and push changes
         run: |
-          git add k8s_manifests/worker-deployment.yml
+          git add k8s_manifests/worker-deployment.yaml
           git commit -m "Updated deployment image to ${{ steps.next_version.outputs.tag }}"
           git push origin main
     
