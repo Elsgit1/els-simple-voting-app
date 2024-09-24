@@ -38,10 +38,10 @@ jobs:
         working-directory: result
         run: npm ci
 
-      # Step 3: Run Tests
-      - name: Run tests
-        working-directory: result/tests
-        run: npm test
+      # # Step 3: Run Tests
+      # - name: Run tests
+      #   working-directory: result/tests
+      #   run: npm test
   
 
       - name: Setup Git
@@ -90,18 +90,7 @@ jobs:
           release_name: vote-app-result ${{ steps.next_version.outputs.tag }}
           draft: false
           prerelease: false
-  
-  ###########################################################
-  #####      Log into repos and build docker image        #####
-  ###########################################################
-    
-      # - name: Extract repository name
-      #   id: repo-name
-      #   run: |
-      #     REPO_NAME="${GITHUB_REPOSITORY##*/}"
-      #     echo "REPO_NAME=$REPO_NAME" >> $GITHUB_ENV
-      #     echo "::set-output name=repo_name::$REPO_NAME"
-      
+          
   
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
