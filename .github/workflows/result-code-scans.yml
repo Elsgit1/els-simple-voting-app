@@ -1,4 +1,4 @@
-name: vote app code analysis and security scan.
+name: vote-app-results code analysis and security scan.
 
 on:
   pull_request: 
