@@ -1,4 +1,4 @@
-name: result app containerize and push to ECR.
+name: vote-app-result containerize and push to ECR.
 
 on:
   push:

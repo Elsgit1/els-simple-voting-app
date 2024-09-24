@@ -1,4 +1,4 @@
-name: worker app containerize and push to ECR.
+name: vote-app-worker containerize and push to ECR.
 
 on:
   push:
