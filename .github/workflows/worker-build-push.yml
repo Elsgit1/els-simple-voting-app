@@ -1,0 +1,245 @@
+name: worker app containerize and push to ECR.
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - 'worker/**'
+
+  workflow_dispatch:
+
+env:
+  AWS_REGION: us-west-1
+  REPOSITORY: vote-app-worker
+  REGISTRY: Amazon ECR
+ 
+
+jobs:
+    worker-build-and-push:
+      runs-on: ubuntu-latest
+      permissions:
+            contents: write
+            packages: write
+
+      steps:
+      - name: Clone repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Necessary to fetch all tags and history
+  
+      # Set up .NET
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '6.0'  # Specify your desired .NET version
+
+      # Install Dependencies
+      - name: Install dependencies
+        run: dotnet restore
+
+      # Build the Application
+      - name: Build .NET Application
+        run: dotnet build --configuration Release --no-restore
+
+      # Run Tests
+      - name: Run tests
+        run: dotnet test --no-restore --verbosity normal
+
+      # Run Snyk Software Composition Analysis. If fails, drop the action
+      - name: Software Composition Analysis with Snyk
+        uses: snyk/actions/node@master
+        env:
+            SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+            args: --all-projects --severity-threshold=medium --json > snyk-results.json
+
+      - name: Check Snyk Results
+        run: |
+            vulnerability_count=$(jq '.vulnerabilities | length' snyk-results.json)
+            if [ $vulnerability_count -gt 5 ]; then
+            echo "SCA scan failed: More than 5 vulnerabilities found"
+            exit 1
+            fi
+  
+  
+
+      - name: Setup Git
+        run: |
+          git config --global user.name 'github-actions'
+          git config --global user.email 'github-actions@github.com'
+  
+  ################################################################
+  ###               DETERMINE NEXT VERSION                     ###
+  ###   Used for creating new releases and image tags          ###
+  ################################################################
+  
+      - name: Determine Next Version
+        id: next_version
+        run: |
+          # Fetch all tags
+          git fetch --tags
+          
+          # Get the latest tag, assume semver, and sort.
+          LATEST_TAG=$(git tag -l | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n1)
+          
+          # If there's no tag yet, start with v1.0.0.
+          if [ -z "$LATEST_TAG" ]; then
+            LATEST_TAG="v1.0.0"
+          fi
+          
+          # Increment the patch version
+          NEXT_TAG=$(echo $LATEST_TAG | awk -F. '{print $1"."$2"."$3+1}')
+          
+          # Output the next version
+          echo "::set-output name=tag::$NEXT_TAG"
+          echo "Next version: $NEXT_TAG"
+  
+  ################################################################
+  ###                     CREATE RELEASE                       ###
+  ###  Creating release with the tag from the previous step    ###
+  ################################################################
+  
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+        with:
+          tag_name: ${{ steps.next_version.outputs.tag }}
+          release_name: vote-app-worker ${{ steps.next_version.outputs.tag }}
+          draft: false
+          prerelease: false
+  
+  ###########################################################
+  #####      Log into repos and build docker image        #####
+  ###########################################################
+    
+      # - name: Extract repository name
+      #   id: repo-name
+      #   run: |
+      #     REPO_NAME="${GITHUB_REPOSITORY##*/}"
+      #     echo "REPO_NAME=$REPO_NAME" >> $GITHUB_ENV
+      #     echo "::set-output name=repo_name::$REPO_NAME"
+      
+  
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+  
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+
+      - name: Build Docker image
+        id: build-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{ env.REPOSITORY }}
+          IMAGE_TAG: ${{ steps.next_version.outputs.tag }}
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -f worker/Dockerfile worker 
+          echo "IMAGE_NAME=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_ENV
+          echo "::set-output name=name::$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+  
+  ##################################################################
+  ###  Snyk & SonarCloud image scans | If fails, drop the action ###
+  ##################################################################              
+                 
+      - name: Run Snyk to check Docker image for vulnerabilities
+        uses: snyk/actions/docker@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+           image: ${{ steps.build-image.outputs.name }}
+           args: --severity-threshold=high --policy-path=.snyk --file=Dockerfile
+        continue-on-error: true
+      
+
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@master
+        with:
+          args: >
+            -Dsonar.projectKey=Elsgit1_els-simple-voting-app
+            -Dsonar.organization=elsgit1
+            -Dsonar.host.url=https://sonarcloud.io
+            -Dsonar.sources=worker
+        env:
+          GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+  
+  ###########################################################
+  ###                   PUSH IMAGE TO ECR                 ###
+  ###     Tag Docker image as "latest" and push to ECR    ###
+  ########################################################### 
+  
+      - name: Push Docker image to Amazon ECR
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{ env.REPOSITORY }}
+          IMAGE_TAG: ${{ steps.next_version.outputs.tag }}
+          APP_NAME: vote-app-worker
+          DOCKERHUB_USERNAME: elsdokr
+        run: |
+          
+          #Tag and push to ECR
+          docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$APP_NAME:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$APP_NAME:$IMAGE_TAG
+
+          #Tag and push to DockerHub
+          docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $DOCKERHUB_USERNAME/$APP_NAME:$IMAGE_TAG
+          docker push $DOCKERHUB_USERNAME/$APP_NAME:$IMAGE_TAG
+
+  ###########################################################
+  ###            Update image tag in manifest            ###
+  ###########################################################         
+
+      - name: Update Manifest
+        env:
+          IMAGE_NAME: ${{ env.IMAGE_NAME }}
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{ env.REPOSITORY }}
+          IMAGE_TAG: ${{ steps.next_version.outputs.tag }}
+          GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+        run: |
+          sed -i 's|image: .*|image: '"$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"'|g' k8s_manifests/worker-deployment.yml
+          echo "Updated deployment image with ${{ steps.next_version.outputs.tag }}"
+
+      - name: Commit and push changes
+        run: |
+          git add k8s_manifests/worker-deployment.yml
+          git commit -m "Updated deployment image to ${{ steps.next_version.outputs.tag }}"
+          git push origin main
+    
+
+#########################################################################################
+###    Send notifications to Slack and email if pipeline fails or is cancelled     ######
+#########################################################################################
+
+    #   - name: Notify on Failure to Slack
+    #     if: failure()
+    #     env:
+    #         SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}  # setup slack webhook url in github secrets
+    #     run: |
+    #         curl -X POST -H 'Content-type: application/json' --data '{"text":"Pipeline failed: ${{ github.workflow }} - ${{ github.run_id }}"}' $SLACK_WEBHOOK_URL
+
+    #   - name: Notify on Failure via Email
+    #     if: failure()
+    #     uses: dawidd6/action-send-mail@v3
+    #     with:
+    #         server_address: smtp.gmail.com
+    #         server_port: 465
+    #         username: ${{ secrets.EMAIL_USERNAME }}
+    #         password: ${{ secrets.EMAIL_PASSWORD }}
+    #         subject: "Pipeline failed: ${{ github.workflow }}"
+    #         body: "Pipeline failed: ${{ github.workflow }} - ${{ github.run_id }}"
+    #         to: dev-notifications@gmail.com  # replace with desired email address
+    #         from: GitHub Actions
