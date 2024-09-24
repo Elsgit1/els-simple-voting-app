@@ -35,10 +35,12 @@ jobs:
 
       # Step 2: Install Dependencies
       - name: Install dependencies
+        working-directory: result
         run: npm ci
 
       # Step 3: Run Tests
       - name: Run tests
+        working-directory: result
         run: npm test
   
 
@@ -139,7 +141,7 @@ jobs:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
            image: ${{ steps.build-image.outputs.name }}
-           args: --severity-threshold=high --policy-path=.snyk --file=Dockerfile
+           args: --severity-threshold=high --policy-path=.snyk --file=result/Dockerfile
         continue-on-error: true
       
 

@@ -32,19 +32,23 @@ jobs:
             node-version: '20'
 
       - name: Install dependencies
+        working-directory: result
         run: npm ci
 
-      - name: Run tests
+      - name: Run 
+        working-directory: result
         run: npm test
     
         
       # Run Snyk Software Composition Analysis. If fails, drop the action
       - name: Run Snyk Open Source Scan
+        working-directory: result
         run: snyk test --file=package.json --severity-threshold=medium --json > snyk-results.json
         env:
             SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
       - name: Check Snyk Results
+        working-directory: result
         run: |
             vulnerability_count=$(jq '.vulnerabilities | length' snyk-results.json)
             if [ $vulnerability_count -gt 5 ]; then
@@ -150,7 +154,7 @@ jobs:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
            image: ${{ steps.build-image.outputs.name }}
-           args: --severity-threshold=high --policy-path=.snyk --file=Dockerfile
+           args: --severity-threshold=high --policy-path=.snyk --file=result/Dockerfile
         continue-on-error: true
 
       - name: SonarCloud Scan

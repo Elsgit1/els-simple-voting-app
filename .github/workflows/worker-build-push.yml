@@ -35,14 +35,17 @@ jobs:
 
       # Install Dependencies
       - name: Install dependencies
+        working-directory: worker
         run: dotnet restore
 
       # Build the Application
       - name: Build .NET Application
+        working-directory: worker
         run: dotnet build --configuration Release --no-restore
 
       # Run Tests
       - name: Run tests
+        working-directory: worker
         run: dotnet test --no-restore --verbosity normal
 
       # Run Snyk Software Composition Analysis. If fails, drop the action
@@ -51,7 +54,7 @@ jobs:
         env:
             SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
-            args: --all-projects --severity-threshold=medium --json > snyk-results.json
+            args: --file=worker/Worker.csproj --severity-threshold=medium --json > snyk-results.json
 
       - name: Check Snyk Results
         run: |
