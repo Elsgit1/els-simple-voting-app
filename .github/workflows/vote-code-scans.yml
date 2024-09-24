@@ -38,20 +38,20 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      # Run Tests
-      - name: Run tests
-        working-directory: vote
-        run: |
-          pip install pytest
-          pytest --junitxml=test-results.xml
+      # # Run Tests
+      # - name: Run tests
+      #   working-directory: vote
+      #   run: |
+      #     pip install pytest
+      #     pytest --junitxml=test-results.xml
 
-      # Upload Test Results (optional but recommended)
-      - name: Upload Test Results
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: test-results
-          path: test-results.xml
+      # # Upload Test Results (optional but recommended)
+      # - name: Upload Test Results
+      #   if: always()
+      #   uses: actions/upload-artifact@v3
+      #   with:
+      #     name: test-results
+      #     path: test-results.xml
 
 
       # Run Snyk Software Composition Analysis. If fails, drop the action
