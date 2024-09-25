@@ -17,7 +17,7 @@ COPY *.csproj .
 RUN dotnet restore --runtime linux-x64
 
 COPY . .
-RUN dotnet publish -c release -o /app --runtime $TARGETPLATFORM --self-contained false --no-restore
+RUN dotnet publish -c release -o /app --runtime linux-x64 --self-contained false --no-restore
 
 # app image
 FROM mcr.microsoft.com/dotnet/runtime:7.0
