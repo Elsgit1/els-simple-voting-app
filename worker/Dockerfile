@@ -18,9 +18,6 @@ COPY *.csproj .
 # Clear NuGet cache
 RUN dotnet nuget locals all --clear
 
-# Add NuGet source if needed
-RUN dotnet nuget add source https://api.nuget.org/v3/index.json -n nuget.org
-
 RUN dotnet restore --runtime linux-x64
 
 COPY . .
