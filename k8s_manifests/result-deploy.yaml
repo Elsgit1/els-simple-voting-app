@@ -15,7 +15,7 @@ spec:
         app: result
     spec:
       containers:
-      - image: {{ env.RESULT_IMAGE }}
+      - image: 339713063356.dkr.ecr.us-west-1.amazonaws.com/vote-app-result:v1.0.5
         name: result
         ports:
         - containerPort: 80
