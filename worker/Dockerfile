@@ -15,8 +15,8 @@ RUN echo "I am running on $BUILDPLATFORM, building for $TARGETPLATFORM"
 WORKDIR /source
 COPY *.csproj .
 
-# Clear NuGet cache
-RUN dotnet nuget locals all --clear
+# # Clear NuGet cache
+# RUN dotnet nuget locals all --clear
 
 RUN dotnet restore --runtime linux-x64
 
