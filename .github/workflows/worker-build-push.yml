@@ -33,13 +33,14 @@ jobs:
         with:
           dotnet-version: '6.0'  # Specify your desired .NET version
 
-      # Install Dependencies
-      - name: Install dependencies
-        working-directory: worker
-        run: dotnet restore
+      # # Install Dependencies
+      # - name: Install dependencies
+      #   working-directory: worker
+      #   run: dotnet restore
 
       # Build the Application
       - name: Build .NET Application
+        working-directory: worker
         run: dotnet build --configuration Release --no-restore
 
       # # Run Tests
