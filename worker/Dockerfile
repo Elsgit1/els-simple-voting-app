@@ -6,26 +6,39 @@
 # to build for a different platform than your host, use --platform=<platform>
 # for example, if you were on Intel (amd64) and wanted to build for ARM, you would use:
 # docker buildx build --platform "linux/arm64/v8" .
-FROM --platform=${BUILDPLATFORM} mcr.microsoft.com/dotnet/sdk:7.0-alpine as build
-ARG TARGETPLATFORM
-ARG TARGETARCH
-ARG BUILDPLATFORM
-RUN echo "I am running on $BUILDPLATFORM, building for $TARGETPLATFORM"
+# Use the official .NET SDK image for the build stage
+FROM mcr.microsoft.com/dotnet/sdk:7.0 AS build
 
-WORKDIR /source
+# Set environment variables to reduce image size
+ENV DOTNET_CLI_TELEMETRY_OPTOUT=1 \
+    DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1 \
+    DOTNET_NOLOGO=true
 
-# COPY *.csproj .
+# Set the working directory
+WORKDIR /src
 
-# # # Clear NuGet cache
-# # RUN dotnet nuget locals all --clear
+# Copy the .csproj file and restore dependencies
+COPY *.csproj ./
+RUN dotnet restore --no-cache
 
-# RUN dotnet restore --runtime linux-x64
-
+# Copy the remaining application files
 COPY . .
-RUN dotnet publish -c release -o /app --runtime linux-x64 --self-contained false --no-restore
 
-# app image
-FROM mcr.microsoft.com/dotnet/runtime:7.0-alpine
+# Build the application in Release mode
+RUN dotnet publish -c Release -o /app --no-restore
+
+# Use a lightweight runtime image for the final stage
+FROM mcr.microsoft.com/dotnet/aspnet:7.0 AS runtime
+
+# Set the working directory
 WORKDIR /app
-COPY --from=build /app .
+
+# Copy the build output from the previous stage
+COPY --from=build /app ./
+
+# # Set up a non-root user for better security
+# RUN adduser --disabled-password appuser
+# USER appuser
+
+# Specify the entry point for the application
 ENTRYPOINT ["dotnet", "Worker.dll"]
