@@ -13,12 +13,13 @@ ARG BUILDPLATFORM
 RUN echo "I am running on $BUILDPLATFORM, building for $TARGETPLATFORM"
 
 WORKDIR /source
-COPY *.csproj .
 
-# # Clear NuGet cache
-# RUN dotnet nuget locals all --clear
+# COPY *.csproj .
 
-RUN dotnet restore --runtime linux-x64
+# # # Clear NuGet cache
+# # RUN dotnet nuget locals all --clear
+
+# RUN dotnet restore --runtime linux-x64
 
 COPY . .
 RUN dotnet publish -c release -o /app --runtime linux-x64 --self-contained false --no-restore
