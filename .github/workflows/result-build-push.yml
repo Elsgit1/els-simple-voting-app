@@ -90,7 +90,7 @@ jobs:
           release_name: vote-app-result ${{ steps.next_version.outputs.tag }}
           draft: false
           prerelease: false
-          
+
   
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
@@ -156,7 +156,7 @@ jobs:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: ${{ env.REPOSITORY }}
           IMAGE_TAG: ${{ steps.next_version.outputs.tag }}
-          APP_NAME: result-app
+          APP_NAME: vote-app-result
           DOCKERHUB_USERNAME: elsdokr
         run: |
           
