@@ -15,7 +15,7 @@ spec:
         app: worker
     spec:
       containers:
-      - image: {{ env.WORKER_IMAGE }}
+      - image: 339713063356.dkr.ecr.us-west-1.amazonaws.com/vote-app-worker:v1.0.12
         name: worker
         resources:
           limits:
