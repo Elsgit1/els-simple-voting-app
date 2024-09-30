@@ -117,18 +117,7 @@ jobs:
           release_name: vote-app-worker ${{ steps.next_version.outputs.tag }}
           draft: false
           prerelease: false
-  
-  ###########################################################
-  #####      Log into repos and build docker image        #####
-  ###########################################################
-    
-      # - name: Extract repository name
-      #   id: repo-name
-      #   run: |
-      #     REPO_NAME="${GITHUB_REPOSITORY##*/}"
-      #     echo "REPO_NAME=$REPO_NAME" >> $GITHUB_ENV
-      #     echo "::set-output name=repo_name::$REPO_NAME"
-      
+
   
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
@@ -168,7 +157,7 @@ jobs:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
            image: ${{ steps.build-image.outputs.name }}
-           args: --severity-threshold=high --policy-path=.snyk --file=Dockerfile
+           args: --severity-threshold=high --policy-path=.snyk --file=worker/Dockerfile
         continue-on-error: true
       
 
@@ -219,12 +208,12 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
         run: |
           sed -i 's|image: .*|image: '"$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"'|g' k8s_manifests/worker-deployment.yaml
-          echo "Updated deployment image with ${{ steps.next_version.outputs.tag }}"
+          echo "Updated deployment image tag to ${{ steps.next_version.outputs.tag }}"
 
       - name: Commit and push changes
         run: |
           git add k8s_manifests/worker-deployment.yaml
-          git commit -m "Updated deployment image to ${{ steps.next_version.outputs.tag }}"
+          git commit -m "Updated worker-deployment.yaml image tag to ${{ steps.next_version.outputs.tag }}"
           git push origin main
     
 
