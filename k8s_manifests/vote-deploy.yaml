@@ -35,12 +35,13 @@ metadata:
   name: vote
   labels:
     app: vote
-  spec:
-  type: clusterIP
+spec:
+  type: NodePort
   selector:
     app: vote
   ports:
   - name: "vote-service"
     port: 5000
     targetPort: 80
+    nodePort: 31000
 
