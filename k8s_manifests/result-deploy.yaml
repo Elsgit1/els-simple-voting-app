@@ -35,12 +35,11 @@ metadata:
   labels:
     app: result
   spec:
-  type: NodePort
+  type: ClusterIP
   selector:
     app: result
   ports:
   - name: "result-service"
     port: 5001
     targetPort: 80
-    nodePort: 31001
-   
+
