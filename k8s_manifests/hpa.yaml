@@ -1,0 +1,38 @@
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: vote-app-hpa
+  # namespace: staging # Replace with the namespace where your deployment is located
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: vote # Replace with the name of your deployment
+  minReplicas: 1 # Minimum number of replicas
+  maxReplicas: 3 # Maximum number of replicas
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 80 # Scale up when CPU usage reaches 80%
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 70 # Scale up when memory usage reaches 70%
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 40 # Scale down when CPU usage reaches 40%
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 40
+# You can define additional metrics here (e.g., pods, custom metrics)

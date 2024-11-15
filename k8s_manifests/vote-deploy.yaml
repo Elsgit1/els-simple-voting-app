@@ -1,9 +1,9 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
+  name: vote
   labels:
     app: vote
-  name: vote
 spec:
   replicas: 1
   selector:
@@ -32,16 +32,16 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: vote
+  name: vote-service
   labels:
     app: vote
 spec:
-  type: NodePort
+  type: ClusterIP
   selector:
     app: vote
   ports:
   - name: "vote-service"
     port: 5000
     targetPort: 80
-    nodePort: 31000
+    # nodePort: 31000
 
