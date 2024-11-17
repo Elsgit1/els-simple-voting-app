@@ -1,6 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
+  namespace: dev
   labels:
     app: worker
   name: worker
@@ -14,6 +15,8 @@ spec:
       labels:
         app: worker
     spec:
+      imagePullSecrets:
+      - name: ecr-registry
       containers:
       - image: 339713063356.dkr.ecr.us-west-1.amazonaws.com/vote-app-worker:v1.0.12
         name: worker
