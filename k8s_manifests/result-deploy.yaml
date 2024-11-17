@@ -1,9 +1,9 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
+  name: result
   labels:
     app: result
-  name: result
 spec:
   replicas: 1
   selector:
@@ -27,20 +27,21 @@ spec:
           requests:
             cpu: 500m
             memory: 512Mi
+
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: result
+  name: result-service
   labels:
     app: result
 spec:
-  type: NodePort
+  type: ClusterIP
   selector:
     app: result
   ports:
   - name: "result-service"
     port: 5001
     targetPort: 80
-    nodePort: 31001
+    # nodePort: 31001
 

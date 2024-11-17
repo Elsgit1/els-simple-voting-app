@@ -1,0 +1,13 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: audioprodhub-cert
+  namespace: traefik # Ensure it's in the same namespace as your Ingress
+spec:
+  secretName: audioprodhub-tls # The name of the secret where the certificate will be stored
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  commonName: audioprodhub.com
+  dnsNames:
+  - audioprodhub.com
