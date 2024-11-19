@@ -18,7 +18,7 @@ spec:
       imagePullSecrets:
       - name: ecr-registry
       containers:
-      - image: 339713063356.dkr.ecr.us-west-1.amazonaws.com/vote-app-result:v1.0.5
+      - image: 339713063356.dkr.ecr.us-west-1.amazonaws.com/vote-app-result:v1.0.16
         name: result
         ports:
         - containerPort: 80
