@@ -12,16 +12,15 @@ env:
   AWS_REGION: us-west-1
   REPOSITORY: vote-app
   REGISTRY: Amazon ECR
- 
 
 jobs:
-    vote-build-and-push:
-      runs-on: ubuntu-latest
-      permissions:
-            contents: write
-            packages: write
+  vote-build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
 
-      steps:
+    steps:
       - name: Clone repo
         uses: actions/checkout@v4
         with:
@@ -83,20 +82,20 @@ jobs:
           # Increment the patch version
           NEXT_TAG=$(echo $LATEST_TAG | awk -F. '{print $1"."$2"."$3+1}')
           
-          # Output the next version
-          echo "::set-output name=tag::$NEXT_TAG"
+          # Output the next version using modern GITHUB_OUTPUT format
+          echo "tag=$NEXT_TAG" >> $GITHUB_OUTPUT
           echo "Next version: $NEXT_TAG"
   
   ################################################################
-  ###                     CREATE RELEASE                       ###
-  ###  Creating release with the tag from the previous step    ###
+  ###                       CREATE RELEASE                     ###
+  ###   Creating release with the tag from the previous step    ###
   ################################################################
   
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ steps.next_version.outputs.tag }}
           release_name: vote-app ${{ steps.next_version.outputs.tag }}
@@ -130,12 +129,13 @@ jobs:
         run: |
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -f vote/Dockerfile vote 
           echo "IMAGE_NAME=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_ENV
-          echo "::set-output name=name::$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+          # Output using modern GITHUB_OUTPUT format
+          echo "name=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
   
   ##################################################################
   ###  Snyk & SonarCloud image scans | If fails, drop the action ###
   ##################################################################              
-                 
+                     
       - name: Run Snyk to check Docker image for vulnerabilities
         uses: snyk/actions/docker@master
         env:
@@ -156,7 +156,7 @@ jobs:
             -Dsonar.python.coverage.reportPaths=test-results.xml
             -Dsonar.sources=vote
         env:
-          GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
   
   ###########################################################
@@ -182,7 +182,7 @@ jobs:
           docker push $DOCKERHUB_USERNAME/$APP_NAME:$IMAGE_TAG
 
   ###########################################################
-  ###            Update image tag in manifest            ###
+  ###            Update image tag in manifest             ###
   ###########################################################         
 
       - name: Update Manifest
@@ -191,7 +191,7 @@ jobs:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: ${{ env.REPOSITORY }}
           IMAGE_TAG: ${{ steps.next_version.outputs.tag }}
-          GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           sed -i 's|image: .*|image: '"$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"'|g' k8s_manifests/vote-deploy.yaml
           echo "Updated deployment image tag to ${{ steps.next_version.outputs.tag }}"
@@ -201,28 +201,3 @@ jobs:
           git add k8s_manifests/vote-deploy.yaml
           git commit -m "Updated vote-deploy.yaml image tag to ${{ steps.next_version.outputs.tag }}"
           git push origin main
-    
-
-#########################################################################################
-###    Send notifications to Slack and email if pipeline fails or is cancelled     ######
-#########################################################################################
-
-    #   - name: Notify on Failure to Slack
-    #     if: failure()
-    #     env:
-    #         SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}  # setup slack webhook url in github secrets
-    #     run: |
-    #         curl -X POST -H 'Content-type: application/json' --data '{"text":"Pipeline failed: ${{ github.workflow }} - ${{ github.run_id }}"}' $SLACK_WEBHOOK_URL
-
-    #   - name: Notify on Failure via Email
-    #     if: failure()
-    #     uses: dawidd6/action-send-mail@v3
-    #     with:
-    #         server_address: smtp.gmail.com
-    #         server_port: 465
-    #         username: ${{ secrets.EMAIL_USERNAME }}
-    #         password: ${{ secrets.EMAIL_PASSWORD }}
-    #         subject: "Pipeline failed: ${{ github.workflow }}"
-    #         body: "Pipeline failed: ${{ github.workflow }} - ${{ github.run_id }}"
-    #         to: dev-notifications@gmail.com  # replace with desired email address
-    #         from: GitHub Actions
