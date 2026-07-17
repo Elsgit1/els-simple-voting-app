@@ -1,4 +1,4 @@
-name: vote-app-result containerize and push to ECR.
+name: result-app-result containerize and push to registry.
 
 on:
   push:
@@ -20,6 +20,7 @@ jobs:
       permissions:
             contents: write
             packages: write
+            pull-requests: write
 
       steps:
       - name: Clone repo
@@ -84,7 +85,7 @@ jobs:
         id: create_release
         uses: actions/create-release@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ steps.next_version.outputs.tag }}
           release_name: vote-app-result ${{ steps.next_version.outputs.tag }}
@@ -143,7 +144,7 @@ jobs:
             -Dsonar.host.url=https://sonarcloud.io
             -Dsonar.sources=result
         env:
-          GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
   
   ###########################################################
@@ -169,47 +170,40 @@ jobs:
           docker push $DOCKERHUB_USERNAME/$APP_NAME:$IMAGE_TAG
 
   ###########################################################
-  ###            Update image tag in manifest            ###
+  ###            Update image tag in manifest             ###
   ###########################################################         
 
-      - name: Update Manifest
+      - name: Update Manifest and Create PR
         env:
           IMAGE_NAME: ${{ env.IMAGE_NAME }}
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: ${{ env.REPOSITORY }}
           IMAGE_TAG: ${{ steps.next_version.outputs.tag }}
-          GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          # 1. Create and switch to a unique feature branch
+          BRANCH_NAME="update-manifest-${IMAGE_TAG}"
+          git checkout -b $BRANCH_NAME
+
+          # 2. Pull latest changes from main to stay updated
+          git pull origin main
+
+          # 3. Update the manifest file
           sed -i 's|image: .*|image: '"$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"'|g' k8s_manifests/result-deploy.yaml
-          echo "Updated deployment image tag to ${{ steps.next_version.outputs.tag }}"
+          echo "Updated deployment image tag to $IMAGE_TAG"
 
-      - name: Commit and push changes
-        run: |
+          # 4. Configure git user for the runner (required to commit)
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+          # 5. Commit and push the feature branch
           git add k8s_manifests/result-deploy.yaml
-          git commit -m "Updated result-deploy.yaml image tag to ${{ steps.next_version.outputs.tag }}"
-          git push origin main
-    
+          git commit -m "chore: update manifest to new image tag $IMAGE_TAG"
+          git push origin $BRANCH_NAME
 
-#########################################################################################
-###    Send notifications to Slack and email if pipeline fails or is cancelled     ######
-#########################################################################################
-
-    #   - name: Notify on Failure to Slack
-    #     if: failure()
-    #     env:
-    #         SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}  # setup slack webhook url in github secrets
-    #     run: |
-    #         curl -X POST -H 'Content-type: application/json' --data '{"text":"Pipeline failed: ${{ github.workflow }} - ${{ github.run_id }}"}' $SLACK_WEBHOOK_URL
-
-    #   - name: Notify on Failure via Email
-    #     if: failure()
-    #     uses: dawidd6/action-send-mail@v3
-    #     with:
-    #         server_address: smtp.gmail.com
-    #         server_port: 465
-    #         username: ${{ secrets.EMAIL_USERNAME }}
-    #         password: ${{ secrets.EMAIL_PASSWORD }}
-    #         subject: "Pipeline failed: ${{ github.workflow }}"
-    #         body: "Pipeline failed: ${{ github.workflow }} - ${{ github.run_id }}"
-    #         to: dev-notifications@gmail.com  # replace with desired email address
-    #         from: GitHub Actions
+          # 6. Create the Pull Request using GitHub CLI
+          gh pr create \
+            --title "chore: update manifest to new image tag $IMAGE_TAG" \
+            --body "Automated PR to update the deployment image tag to $IMAGE_TAG." \
+            --base main \
+            --head $BRANCH_NAME
